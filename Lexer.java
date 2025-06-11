@@ -8,7 +8,6 @@ public class Lexer {
     ));
 
     // Regex patterns (see next commit, where they are substituted with FAs)
-    private static Pattern numberPattern = Pattern.compile("^\\d+(\\.\\d+)?");
     private static Pattern stringPattern = Pattern.compile("^\"(\\\\.|[^\"])*\"|^'(\\\\.|[^'])*'");
     private static Pattern namePattern = Pattern.compile("^[a-zA-Z_$][a-zA-Z0-9_$]*");
     private static Pattern operatorPattern = Pattern.compile("^(==|!=|<=|>=|\\+\\+|--|\\+|-|\\*|/|=|<|>)");
@@ -41,16 +40,17 @@ public class Lexer {
             // get rest of the string to match with patterns
             String rest = inputText.substring(i);
 
-            Matcher matcher;
-
-            // check if it's a number
-            matcher = numberPattern.matcher(rest);
-            if (matcher.find()) {
-                String number = matcher.group();
+            String number = matchNumberFA(rest);
+            if (number != null) {
                 tokenList.add(new Token(TokenType.NUMBER, number, line));
                 i += number.length();
                 continue;
             }
+
+            Matcher matcher;
+
+            // check if it's a number
+
 
             // check if it's a string
             matcher = stringPattern.matcher(rest);
@@ -101,5 +101,52 @@ public class Lexer {
         }
 
         return tokenList; // send back list of the tokens
+    }
+
+    private String matchNumberFA(String input) {
+        int state = 0;
+        int i = 0;
+
+        while (i < input.length()) {
+            char ch = input.charAt(i);
+
+            switch (state) {
+                case 0:
+                    if (Character.isDigit(ch)) {
+                        state = 1;
+                    } else {
+                        return null;
+                    }
+                    break;
+                case 1:
+                    if (Character.isDigit(ch)) {
+                        // stay in state 1
+                    } else if (ch == '.') {
+                        state = 2;
+                    } else {
+                        return input.substring(0, i);
+                    }
+                    break;
+                case 2:
+                    if (Character.isDigit(ch)) {
+                        state = 3;
+                    } else {
+                        return null; // invalid float (e.g., "123.")
+                    }
+                    break;
+                case 3:
+                    if (!Character.isDigit(ch)) {
+                        return input.substring(0, i);
+                    }
+                    break;
+            }
+            i++;
+        }
+
+        if (state == 1 || state == 3) {
+            return input.substring(0, i); // valid number (int or float)
+        }
+
+        return null;
     }
 }
